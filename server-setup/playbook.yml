@@ -1,0 +1,75 @@
+---
+- hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Ensure Docker is installed
+      raw: |
+        if command -v apt-get >/dev/null; then
+          sudo apt-get install -y docker.io
+        elif command -v yum >/dev/null; then
+          sudo yum install -y docker
+        fi
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Pull MySQL Docker image
+      docker_image:
+        name: mysql
+        tag: "8.0"
+        source: pull
+
+    - name: Run MySQL container
+      docker_container:
+        name: "{{ mysql_container_name }}"
+        image: mysql:8.0
+        state: started
+        restart_policy: always
+        env:
+          MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+          MYSQL_DATABASE: "{{ db_name }}"
+          MYSQL_USER: "{{ db_username }}"
+          MYSQL_PASSWORD: "{{ db_password }}"
+        published_ports:
+          - "3306:3306"
+
+    - name: Wait for MySQL to be ready
+      wait_for:
+        port: 3306
+        delay: 10
+        timeout: 60
+
+    - name: Create SQL script file
+      copy:
+        content: |
+          CREATE DATABASE IF NOT EXISTS app;
+          USE app;
+          CREATE USER IF NOT EXISTS 'user'@'%' IDENTIFIED BY 'password';
+          GRANT ALL PRIVILEGES ON app.* TO 'user'@'%';
+          FLUSH PRIVILEGES;
+
+          CREATE TABLE IF NOT EXISTS test (
+              id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+              name VARCHAR(30) NOT NULL,
+              value VARCHAR(50)
+          );
+
+          INSERT INTO test (name, value) VALUES ('SampleName1', 'SampleValue1');
+          INSERT INTO test (name, value) VALUES ('SampleName2', 'SampleValue2');
+          INSERT INTO test (name, value) VALUES ('SampleName3', 'SampleValue3');
+        dest: "{{ sql_script_file }}"
+        mode: '0644'
+
+    - name: Execute SQL script on MySQL container
+      shell: docker exec -i {{ mysql_container_name }} mysql -u root -p{{ mysql_root_password }} < {{ sql_script_file }}
+
+    - name: Clean up SQL script file
+      file:
+        path: "{{ sql_script_file }}"
+        state: absent

@@ -1,0 +1,6 @@
+mysql_root_password: "rootpassword"
+db_name: "app"
+db_username: "user"
+db_password: "password"
+mysql_container_name: "mysql-container"
+sql_script_file: "/tmp/setup_db.sql"
