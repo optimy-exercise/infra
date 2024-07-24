@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  terraform:
-    name: Terraform
+  setup-sever:
+    name: Server Initialization
     runs-on: ubuntu-latest
 
     steps:
@@ -30,11 +30,11 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./server-setup
+        working-directory: ./server-init
 
       - name: Terraform Apply
         run: terraform apply -auto-approve
-        working-directory: ./server-setup
+        working-directory: ./server-init
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
