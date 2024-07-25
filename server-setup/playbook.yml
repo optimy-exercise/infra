@@ -43,33 +43,43 @@
       wait_for:
         port: 3306
         delay: 10
-        timeout: 60
+        timeout: 120
+    
+    - name: Ensure MySQL server is up inside container
+      shell: |
+        until docker exec -i {{ mysql_container_name }} mysqladmin ping -u root -p{{ mysql_root_password }} --silent; do
+          sleep 5
+        done
 
     - name: Create SQL script file
       copy:
-        content: |
-          CREATE DATABASE IF NOT EXISTS app;
-          USE app;
-          CREATE USER IF NOT EXISTS 'user'@'%' IDENTIFIED BY 'password';
-          GRANT ALL PRIVILEGES ON app.* TO 'user'@'%';
-          FLUSH PRIVILEGES;
-
-          CREATE TABLE IF NOT EXISTS test (
-              id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-              name VARCHAR(30) NOT NULL,
-              value VARCHAR(50)
-          );
-
-          INSERT INTO test (name, value) VALUES ('SampleName1', 'SampleValue1');
-          INSERT INTO test (name, value) VALUES ('SampleName2', 'SampleValue2');
-          INSERT INTO test (name, value) VALUES ('SampleName3', 'SampleValue3');
+        src: ../server-setup/mysql/init.sql
         dest: "{{ sql_script_file }}"
         mode: '0644'
 
     - name: Execute SQL script on MySQL container
-      shell: docker exec -i {{ mysql_container_name }} mysql -u root -p{{ mysql_root_password }} < {{ sql_script_file }}
+      shell: |
+        docker exec -i {{ mysql_container_name }} sh -c 'exec mysql -u root -p"{{ mysql_root_password }}"' < "{{ sql_script_file }}"
 
     - name: Clean up SQL script file
       file:
         path: "{{ sql_script_file }}"
         state: absent
+
+    - name: Pull Grafana Docker image
+      docker_image:
+        name: grafana/grafana
+        tag: "latest"
+        source: pull
+
+    - name: Run Grafana container
+      docker_container:
+        name: "grafana"
+        image: grafana/grafana:latest
+        state: started
+        restart_policy: always
+        env:
+          GF_SECURITY_ADMIN_USER: admin
+          GF_SECURITY_ADMIN_PASSWORD: admin
+        published_ports:
+          - "3000:3000"
