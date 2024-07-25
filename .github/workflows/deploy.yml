@@ -25,8 +25,8 @@ jobs:
       - name: Add SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/aws-personal-key.pem
+          chmod 600 ~/.ssh/aws-personal-key.pem
 
       - name: Terraform Init
         run: terraform init
